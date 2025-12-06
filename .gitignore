@@ -1,0 +1,12 @@
+# Ignore unwanted folders
+TomatoDataset/
+YOLOv8/
+venv/
+.vscode/
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+
+# Ignore model weights
+*.pt

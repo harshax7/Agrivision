@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tomato Leaf Disease Detector</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite@0.0.1-alpha.9/dist/tf-tflite.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #eeeff4ff 0%, #5978aaff 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #8190abff 0%, #6c86bbff 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 30px;
+        }
+
+        .input-section {
+            background: #f7fafc;
+            border-radius: 15px;
+            padding: 25px;
+        }
+
+        .input-section h2 {
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            background: white;
+            color: #4a5568;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .video-container, .upload-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        #webcam, #uploadPreview {
+            width: 100%;
+            max-width: 640px;
+            height: 480px;
+            background: #000;
+            border-radius: 10px;
+            object-fit: contain;
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #2d3748;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            margin-top: 20px;
+        }
+
+        #imageUpload {
+            display: none;
+        }
+
+        .file-input-label {
+            display: inline-block;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .file-input-label:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .results-section {
+            background: #f7fafc;
+            border-radius: 15px;
+            padding: 25px;
+        }
+
+        .results-section h2 {
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .result-box {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .result-box h3 {
+            color: #2d3748;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .result-item {
+            padding: 10px;
+            margin: 10px 0;
+            background: #f7fafc;
+            border-radius: 8px;
+        }
+
+        .result-label {
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .result-value {
+            color: #2d3748;
+            margin-top: 5px;
+        }
+
+        .confidence {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #48bb78;
+            color: white;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin-left: 10px;
+        }
+
+        .error {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #c53030;
+        }
+
+        .success {
+            background: #c6f6d5;
+            color: #22543d;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #22543d;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status {
+            text-align: center;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🍅 Tomato Leaf Disease Detection System</h1>
+            <p>AI-Powered Detection Using YOLO + TensorFlow Lite</p>
+        </div>
+
+        <div class="main-content">
+            <div class="input-section">
+                <h2>Input Method</h2>
+                
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchTab('camera')">📷 Live Camera</button>
+                    <button class="tab-btn" onclick="switchTab('upload')">📁 Upload Image</button>
+                </div>
+
+                <div id="cameraTab" class="tab-content active">
+                    <div class="video-container">
+                        <video id="webcam" autoplay playsinline></video>
+                        <canvas id="canvas" style="display:none;"></canvas>
+                    </div>
+                    <div class="controls">
+                        <button class="btn btn-primary" onclick="startCamera()">Start Camera</button>
+                        <button class="btn btn-secondary" onclick="stopCamera()">Stop Camera</button>
+                        <button class="btn btn-primary" onclick="captureAndDetect()">Detect</button>
+                    </div>
+                    <div id="cameraStatus" class="status"></div>
+                </div>
+
+                <div id="uploadTab" class="tab-content">
+                    <div class="upload-container">
+                        <img id="uploadPreview" src="" alt="Upload an image" style="display:none;">
+                        <div id="uploadPlaceholder" style="padding: 100px 20px; color: #a0aec0;">
+                            <svg style="width: 80px; height: 80px; margin: 0 auto; display: block;" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M16.88 9.1A4 4 0 0 1 16 17H5a5 5 0 0 1-1-9.9V7a3 3 0 0 1 4.52-2.59A4.98 4.98 0 0 1 17 8c0 .38-.04.74-.12 1.1zM11 11h3l-4-4-4 4h3v3h2v-3z" />
+                            </svg>
+                            <p style="margin-top: 20px; font-size: 1.1em;">Select an image to analyze</p>
+                        </div>
+                        <div class="file-input-wrapper">
+                            <input type="file" id="imageUpload" accept="image/*" onchange="previewImage(event)">
+                            <label for="imageUpload" class="file-input-label">Choose Image</label>
+                        </div>
+                    </div>
+                    <div class="controls">
+                        <button class="btn btn-primary" onclick="detectUploadedImage()">Detect Disease</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="results-section">
+                <h2>Detection Results</h2>
+                <div id="results">
+                    <div style="text-align: center; padding: 60px 20px; color: #a0aec0;">
+                        <svg style="width: 100px; height: 100px; margin: 0 auto; display: block;" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
+                            <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/>
+                        </svg>
+                        <p style="margin-top: 20px; font-size: 1.1em;">Results will appear here</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let stream = null;
+        let diseaseModel = null;
+        let isModelLoaded = false;
+
+        // Disease classes - UPDATE THESE based on your TFLite model's classes
+        const diseaseClasses = [
+            'Tomato_Bacterial_spot', 
+            'Tomato_Early_blight',
+            'Tomato_Late_blight',
+            'Tomato_Leaf_Mold',
+            'Tomato_Septoria_leaf_spot',
+            'Tomato_Spider_mites',
+            'Tomato_Target_Spot',
+            'Tomato_Yellow_Leaf_Curl_Virus',
+            'Tomato_mosaic_virus',
+            'Tomato_healthy'
+        ];
+
+        // Load TFLite model on page load
+        window.addEventListener('load', async () => {
+            try {
+                showStatus('Loading disease detection model...', 'loading');
+                // IMPORTANT: Replace 'disease_detection_model.tflite' with your actual model filename
+                diseaseModel = await tflite.loadTFLiteModel('disease_detection_model.tflite');
+                isModelLoaded = true;
+                showStatus('Model loaded successfully!', 'success');
+            } catch (error) {
+                console.error('Error loading model:', error);
+                showStatus('Error loading model. Please ensure model file is in the same directory.', 'error');
+            }
+        });
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            if (tab === 'camera') {
+                document.querySelector('.tab-btn:first-child').classList.add('active');
+                document.getElementById('cameraTab').classList.add('active');
+            } else {
+                document.querySelector('.tab-btn:last-child').classList.add('active');
+                document.getElementById('uploadTab').classList.add('active');
+                stopCamera();
+            }
+        }
+
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: 640, height: 480 } 
+                });
+                document.getElementById('webcam').srcObject = stream;
+                showCameraStatus('Camera started', 'success');
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+                showCameraStatus('Error accessing camera', 'error');
+            }
+        }
+
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                document.getElementById('webcam').srcObject = null;
+                showCameraStatus('Camera stopped', 'info');
+            }
+        }
+
+        function showCameraStatus(message, type) {
+            const statusDiv = document.getElementById('cameraStatus');
+            statusDiv.textContent = message;
+            statusDiv.className = 'status';
+            if (type === 'success') statusDiv.style.background = '#c6f6d5';
+            else if (type === 'error') statusDiv.style.background = '#fed7d7';
+            else statusDiv.style.background = '#bee3f8';
+        }
+
+        function previewImage(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('uploadPreview');
+                    const placeholder = document.getElementById('uploadPlaceholder');
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                    placeholder.style.display = 'none';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        async function captureAndDetect() {
+            const video = document.getElementById('webcam');
+            const canvas = document.getElementById('canvas');
+            
+            if (!video.srcObject) {
+                showResults('<div class="error">Please start the camera first!</div>');
+                return;
+            }
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            
+            canvas.toBlob(async (blob) => {
+                await processImage(blob);
+            });
+        }
+
+        async function detectUploadedImage() {
+            const preview = document.getElementById('uploadPreview');
+            if (!preview.src || preview.src === '') {
+                showResults('<div class="error">Please upload an image first!</div>');
+                return;
+            }
+
+            const response = await fetch(preview.src);
+            const blob = await response.blob();
+            await processImage(blob);
+        }
+
+        async function processImage(imageBlob) {
+    showResults('<div class="loading"><div class="spinner"></div>Processing...</div>');
+
+    const response = await detectFromBackend(imageBlob);
+
+    if (!response.success) {
+        showResults(`<div class="error">${response.error}</div>`);
+        return;
+    }
+
+    if (!response.leaf_detected) {
+        showResults(`<div class="error">❌ No tomato leaf detected</div>`);
+        return;
+    }
+
+    // Display disease result
+    displayResults({
+        disease: response.disease,
+        confidence: response.confidence,
+        allPredictions: []  // optional
+    });
+}
+async function detectFromBackend(blob) {
+    const formData = new FormData();
+    formData.append("image", blob);
+
+    const res = await fetch("http://localhost:5000/detect-disease", {
+        method: "POST",
+        body: formData
+    });
+
+    return await res.json();
+}
+
+
+
+        async function detectTomatoLeaf(imageBlob) {
+            // SIMULATION: In production, this would call your YOLO model
+            // You'll need to implement actual YOLO inference here
+            
+            // For now, simulating YOLO detection
+            // Replace this with actual YOLO model inference
+            
+            return new Promise((resolve) => {
+                // Simulate processing time
+                setTimeout(() => {
+                    // Randomly decide (90% chance it's a leaf for demo)
+                    // In production, this should use actual YOLO model
+                    const isLeaf = Math.random() > 0.1;
+                    resolve(isLeaf);
+                }, 1000);
+            });
+        }
+
+        async function detectDisease(imageBlob) {
+            if (!isModelLoaded) {
+                throw new Error('Disease detection model not loaded');
+            }
+
+            // Convert blob to tensor
+            const imageBitmap = await createImageBitmap(imageBlob);
+            const canvas = document.createElement('canvas');
+            canvas.width = 224; // Adjust based on your model's input size
+            canvas.height = 224;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(imageBitmap, 0, 0, 224, 224);
+            
+            // Get image data and preprocess
+            const imageData = ctx.getImageData(0, 0, 224, 224);
+            const tensor = tf.browser.fromPixels(imageData)
+                .toFloat()
+                .div(255.0) // Normalize to [0,1]
+                .expandDims(0);
+
+            // Run inference
+            const predictions = await diseaseModel.predict(tensor);
+            const predArray = await predictions.array();
+            
+            // Get the predicted class and confidence
+            const maxIndex = predArray[0].indexOf(Math.max(...predArray[0]));
+            const confidence = predArray[0][maxIndex];
+            
+            tensor.dispose();
+            predictions.dispose();
+
+            return {
+                disease: diseaseClasses[maxIndex] || 'Unknown',
+                confidence: (confidence * 100).toFixed(2),
+                allPredictions: diseaseClasses.map((name, i) => ({
+                    name,
+                    confidence: (predArray[0][i] * 100).toFixed(2)
+                })).sort((a, b) => b.confidence - a.confidence).slice(0, 3)
+            };
+        }
+
+        function displayResults(disease) {
+            const isHealthy = disease.disease === 'Healthy';
+            const statusClass = isHealthy ? 'success' : 'error';
+            
+            let html = `
+                <div class="result-box ${statusClass}">
+                    <h3>${isHealthy ? '✅' : '⚠️'} Leaf Detection Result</h3>
+                    <div class="result-item">
+                        <div class="result-label">Status:</div>
+                        <div class="result-value">Tomato Leaf Detected Successfully</div>
+                    </div>
+                </div>
+
+                <div class="result-box">
+                    <h3>🔬 Disease Detection Result</h3>
+                    <div class="result-item">
+                        <div class="result-label">Detected Disease:</div>
+                        <div class="result-value">
+                            <strong>${disease.disease}</strong>
+                            <span class="confidence">${disease.confidence}%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="result-item">
+                       
+            `;
+            
+            disease.allPredictions.forEach((pred, i) => {
+                html += `
+                    <div class="result-value" style="margin-top: 8px;">
+                        ${i + 1}. ${pred.name}: ${pred.confidence}%
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                </div>
+            `;
+
+            
+
+            showResults(html);
+        }
+
+        function showResults(html) {
+            document.getElementById('results').innerHTML = html;
+        }
+
+        function showStatus(message, type) {
+            console.log(`${type}: ${message}`);
+        }
+    </script>
+</body>
+</html>
